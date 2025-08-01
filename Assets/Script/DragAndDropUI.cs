@@ -27,9 +27,9 @@ public class DragAndDropUI : MonoBehaviour
         var mb = obj.GetComponent<MusicBlock>();
         if (mb == null) mb = obj.AddComponent<MusicBlock>();
 
-        // Démarrer le drag immédiatement (et ne pas détruire si le drop échoue)
-        mb.destroyIfDropFailed = false;  // <-- important pour éviter la "disparition"
-        mb.BeginDragFromUI();
+        // Démarrer le drag immédiatement (et ne pas détruire si le drop échoue) // Start dragging immediately (and don't destroy if drop fails)
+        mb.destroyIfDropFailed = false;  // <-- important pour éviter la "disparition" // <-- important to avoid "disappearance"
+        //mb.BeginDragFromUI();
     }
 
     Vector3 GetMouseWorldPosition(Camera cam, float planeY)

@@ -10,10 +10,10 @@ public class MusicBlock : MonoBehaviour
     private float startPlaneY;
 
     [Header("Drag config")]
-    public float snapRadius = 1.5f;          // plus grand = plus indulgent
-    public bool destroyIfDropFailed = false; // si true (depuis UI), détruit si pas de slot valide
+    public float snapRadius = 1.5f;          // plus grand = plus indulgent // bigger = more forgiving
+    public bool destroyIfDropFailed = false; // si true (depuis UI), détruit si pas de slot valide // if true (from UI), destroyed if no valid slot
 
-    private DropSlot hoveredSlot;            // slot le plus proche (highlight)
+    private DropSlot hoveredSlot;            // slot le plus proche (highlight) // nearest slot (highlight)
 
     [Header("Audio (optionnel)")]
     public AudioClip clip;
@@ -25,18 +25,18 @@ public class MusicBlock : MonoBehaviour
         startPlaneY = startPosition.y;
     }
 
-    // Appelée par l'UI pour démarrer un drag immédiatement
+    // Appelée par l'UI pour démarrer un drag immédiatement // Called by the UI to start a drag immediately
     public void BeginDragFromUI()
     {
         cam = Camera.main;
         isDragging = true;
-        destroyIfDropFailed = false; // <-- CONSEIL : laisser à false pour éviter les disparitions
+        destroyIfDropFailed = false; // <-- TIP: Leave this at false to avoid disappearances
         Vector3 p = GetMouseWorldPosition(startPlaneY);
         transform.position = p;
         startPosition = p;
         startPlaneY = p.y;
 
-        // Détacher d'un slot éventuel
+        // Détacher d'un slot éventuel // Detach from a possible slot
         var parentSlot = GetComponentInParent<DropSlot>();
         if (parentSlot != null)
         {
@@ -48,6 +48,7 @@ public class MusicBlock : MonoBehaviour
     void OnMouseDown()
     {
         isDragging = true;
+        Debug.Log("Dragging block");
         Vector3 p = GetMouseWorldPosition(startPlaneY);
         offset = transform.position - p;
 
@@ -64,7 +65,7 @@ public class MusicBlock : MonoBehaviour
         if (!isDragging) return;
         isDragging = false;
 
-        // Essayer d'abord le slot "hover"
+        // Essayer d'abord le slot "hover" // Try the "hover" slot first
         DropSlot target = hoveredSlot ?? FindNearestSlot(transform.position, snapRadius);
         if (target != null && target.IsEmpty())
         {
@@ -77,7 +78,7 @@ public class MusicBlock : MonoBehaviour
             }
         }
 
-        // drop invalide
+        // drop invalide // invalid drop
         hoveredSlot?.SetHover(false);
         hoveredSlot = null;
 
@@ -91,17 +92,17 @@ public class MusicBlock : MonoBehaviour
     {
         if (!isDragging) return;
 
-        // Plan de drag = hauteur du slot survolé si dispo, sinon hauteur de départ
+        // Plan de drag = hauteur du slot survolé si dispo, sinon hauteur de départ // Drag plane = height of the slot flown over if available, otherwise starting height
         float planeY = (hoveredSlot != null) ? hoveredSlot.transform.position.y : startPlaneY;
 
         Vector3 mousePos = GetMouseWorldPosition(planeY);
         transform.position = mousePos + offset;
 
-        // Highlight : slot le plus proche dans le rayon
+        // Highlight : slot le plus proche dans le rayon // Highlight: closest slot in radius
         DropSlot nearest = FindNearestSlot(transform.position, snapRadius);
-        if (nearest != hoveredSlot)
+        if (nearest != hoveredSlot && hoveredSlot != null)
         {
-            if (hoveredSlot != null) hoveredSlot.SetHover(false);
+            hoveredSlot.SetHover(false);
             hoveredSlot = nearest;
             if (hoveredSlot != null && hoveredSlot.IsEmpty()) hoveredSlot.SetHover(true);
         }
@@ -120,7 +121,7 @@ public class MusicBlock : MonoBehaviour
         DropSlot best = null;
         float bestSqr = radius * radius;
 
-        // Utilise le registre global → pas besoin de colliders
+        // Utilise le registre global → pas besoin de colliders // Uses global registry → no need for colliders
         foreach (var slot in DropSlot.All)
         {
             if (slot == null || !slot.isActiveAndEnabled) continue;

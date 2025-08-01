@@ -4,7 +4,7 @@ using System.Collections.Generic;
 [RequireComponent(typeof(Collider))]
 public class DropSlot : MonoBehaviour
 {
-    // --- Registre global de tous les slots actifs ---
+    // --- Registre global de tous les slots actifs --- // --- Global register of all active slots ---
     public static readonly List<DropSlot> All = new List<DropSlot>();
     void OnEnable() { if (!All.Contains(this)) All.Add(this); }
     void OnDisable() { All.Remove(this); }
@@ -16,7 +16,7 @@ public class DropSlot : MonoBehaviour
     public bool rejectIfTooBig = true;
     public bool clampX = true;
     public bool clampY = true;
-    public bool clampZ = false;     // Z libre par défaut
+    public bool clampZ = false;     // Z libre par défaut // Z free by default
 
     [Header("Offsets de placement")]
     public float placeYOffset = 0f;
@@ -29,7 +29,7 @@ public class DropSlot : MonoBehaviour
     public float extraPaddingZ = 0.0f;
 
     [Header("Visuel du slot (optionnel)")]
-    public Renderer slotRenderer;                 // quad / plane indicateur
+    public Renderer slotRenderer;                 // quad / plane indicateur // quad / plane indicator
     public string slotColorProperty = "_BaseColor";
     public Color emptyColor = new Color(0.7f, 0.7f, 0.7f, 1f);
     public Color filledColor = new Color(0.25f, 0.9f, 0.25f, 1f);
@@ -52,7 +52,7 @@ public class DropSlot : MonoBehaviour
         UpdateVisual();
     }
 
-    // --- API état ---
+    // --- API état --- // --- API status ---
     public bool IsEmpty() => currentBlock == null;
 
     public void PlaceBlock(GameObject block)
@@ -100,40 +100,40 @@ public class DropSlot : MonoBehaviour
     }
 
     /// <summary>
-    /// Placement robuste : clamp centre des bounds en X/Y à l’intérieur du segment (Z libre par défaut).
+    /// Placement robuste : clamp centre des bounds en X/Y à l’intérieur du segment (Z libre par défaut). // Robust placement: clamp center of bounds in X/Y inside the segment (Z free by default).
     /// </summary>
     public bool TryPlaceBlock(GameObject block)
     {
-        // Parenter d’abord
+        // Parenter d’abord // Parent first
         block.transform.SetParent(transform, worldPositionStays: true);
 
         // Direction offset Z
         Vector3 zDir = useSlotForward ? transform.forward : Vector3.forward;
 
-        // Centre cible initial (slot + offsets)
+        // Centre cible initial (slot + offsets) // Initial target center (slot + offsets)
         Vector3 targetCenter = transform.position
                              + new Vector3(0f, placeYOffset, 0f)
                              + zDir * placeZOffset;
 
-        // Sans SegmentConfig : aligner le centre et accepter
+        // Sans SegmentConfig : aligner le centre et accepter // Without SegmentConfig: Align center and accept
         if (segmentConfig == null || !autoClampInside)
         {
             var r0 = block.GetComponentInChildren<Renderer>();
             if (r0 != null)
             {
                 Bounds b0 = r0.bounds;
-                block.transform.position += (targetCenter - b0.center);
+                block.transform.position += targetCenter - b0.center;
             }
             currentBlock = block;
             UpdateVisual();
             return true;
         }
 
-        // Zone autorisée
+        // Zone autorisée // Authorized area
         Bounds inner = segmentConfig.GetWorldInnerBounds();
         inner.Expand(new Vector3(-extraPaddingX, -extraPaddingY, -extraPaddingZ));
 
-        // Bounds bloc
+        // Bounds bloc // Bounds block
         var rend = block.GetComponentInChildren<Renderer>();
         if (rend == null)
         {
@@ -145,7 +145,7 @@ public class DropSlot : MonoBehaviour
         Vector3 halfBlock = bb.extents;
         Vector3 halfInner = inner.extents;
 
-        // Trop grand ?
+        // Trop grand ? // Too big?
         bool tooBigX = clampX && (halfBlock.x > halfInner.x);
         bool tooBigY = clampY && (halfBlock.y > halfInner.y);
         bool tooBigZ = clampZ && (halfBlock.z > halfInner.z);
@@ -157,7 +157,7 @@ public class DropSlot : MonoBehaviour
             return false;
         }
 
-        // Clamp du centre
+        // Clamp du centre // Center Clamp
         Vector3 minCenter = inner.center - (halfInner - halfBlock);
         Vector3 maxCenter = inner.center + (halfInner - halfBlock);
 
@@ -166,7 +166,7 @@ public class DropSlot : MonoBehaviour
         if (clampY) desiredCenter.y = Mathf.Clamp(desiredCenter.y, minCenter.y, maxCenter.y);
         if (clampZ) desiredCenter.z = Mathf.Clamp(desiredCenter.z, minCenter.z, maxCenter.z);
 
-        // Ajuster position pour faire coïncider centre(bounds) et desiredCenter
+        // Ajuster position pour faire coïncider centre(bounds) et desiredCenter // Adjust position to match center(bounds) and desiredCenter
         Vector3 moveDelta = desiredCenter - bb.center;
         block.transform.position += moveDelta;
 

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
 public class MusicBlock : MonoBehaviour
@@ -7,22 +7,50 @@ public class MusicBlock : MonoBehaviour
     private bool isDragging = false;
     private Camera cam;
     private Vector3 startPosition;
+    private float startPlaneY;
 
+    [Header("Drag config")]
+    public float snapRadius = 1.5f;          // plus grand = plus indulgent
+    public bool destroyIfDropFailed = false; // si true (depuis UI), détruit si pas de slot valide
+
+    private DropSlot hoveredSlot;            // slot le plus proche (highlight)
+
+    [Header("Audio (optionnel)")]
     public AudioClip clip;
-    public float snapRadius = 0.6f; // rayon de recherche d'un slot
 
     void Start()
     {
         cam = Camera.main;
         startPosition = transform.position;
+        startPlaneY = startPosition.y;
+    }
+
+    // Appelée par l'UI pour démarrer un drag immédiatement
+    public void BeginDragFromUI()
+    {
+        cam = Camera.main;
+        isDragging = true;
+        destroyIfDropFailed = false; // <-- CONSEIL : laisser à false pour éviter les disparitions
+        Vector3 p = GetMouseWorldPosition(startPlaneY);
+        transform.position = p;
+        startPosition = p;
+        startPlaneY = p.y;
+
+        // Détacher d'un slot éventuel
+        var parentSlot = GetComponentInParent<DropSlot>();
+        if (parentSlot != null)
+        {
+            parentSlot.ClearSlot();
+            transform.SetParent(null, true);
+        }
     }
 
     void OnMouseDown()
     {
         isDragging = true;
-        offset = transform.position - GetMouseWorldPosition();
+        Vector3 p = GetMouseWorldPosition(startPlaneY);
+        offset = transform.position - p;
 
-        // Si on �tait dans un slot, on lib�re ce slot
         var parentSlot = GetComponentInParent<DropSlot>();
         if (parentSlot != null)
         {
@@ -33,57 +61,84 @@ public class MusicBlock : MonoBehaviour
 
     void OnMouseUp()
     {
+        if (!isDragging) return;
         isDragging = false;
 
-        // Trouver le DropSlot le plus proche dans un rayon limit�
-        DropSlot nearest = FindNearestSlot(transform.position, snapRadius);
-        if (nearest != null && nearest.IsEmpty())
+        // Essayer d'abord le slot "hover"
+        DropSlot target = hoveredSlot ?? FindNearestSlot(transform.position, snapRadius);
+        if (target != null && target.IsEmpty())
         {
-            nearest.PlaceBlock(gameObject); // => FitBlock appliqu� ici
-            startPosition = transform.position; // nouvelle "base"
-            return;
+            if (target.TryPlaceBlock(gameObject))
+            {
+                startPosition = transform.position;
+                hoveredSlot?.SetHover(false);
+                hoveredSlot = null;
+                return;
+            }
         }
 
-        // Sinon, retour
-        transform.position = startPosition;
+        // drop invalide
+        hoveredSlot?.SetHover(false);
+        hoveredSlot = null;
+
+        if (destroyIfDropFailed)
+            Destroy(gameObject);
+        else
+            transform.position = startPosition;
     }
 
     void Update()
     {
-        if (isDragging)
+        if (!isDragging) return;
+
+        // Plan de drag = hauteur du slot survolé si dispo, sinon hauteur de départ
+        float planeY = (hoveredSlot != null) ? hoveredSlot.transform.position.y : startPlaneY;
+
+        Vector3 mousePos = GetMouseWorldPosition(planeY);
+        transform.position = mousePos + offset;
+
+        // Highlight : slot le plus proche dans le rayon
+        DropSlot nearest = FindNearestSlot(transform.position, snapRadius);
+        if (nearest != hoveredSlot)
         {
-            transform.position = GetMouseWorldPosition() + offset;
+            if (hoveredSlot != null) hoveredSlot.SetHover(false);
+            hoveredSlot = nearest;
+            if (hoveredSlot != null && hoveredSlot.IsEmpty()) hoveredSlot.SetHover(true);
         }
     }
 
-    Vector3 GetMouseWorldPosition()
+    Vector3 GetMouseWorldPosition(float planeY)
     {
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        Plane plane = new Plane(Vector3.up, Vector3.zero);
+        Plane plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
         if (plane.Raycast(ray, out float d)) return ray.GetPoint(d);
         return transform.position;
     }
 
     DropSlot FindNearestSlot(Vector3 pos, float radius)
     {
-        Collider[] hits = Physics.OverlapSphere(pos, radius);
         DropSlot best = null;
-        float bestDist = float.MaxValue;
+        float bestSqr = radius * radius;
 
-        foreach (var h in hits)
+        // Utilise le registre global → pas besoin de colliders
+        foreach (var slot in DropSlot.All)
         {
-            var slot = h.GetComponent<DropSlot>();
-            if (slot == null) continue;
+            if (slot == null || !slot.isActiveAndEnabled) continue;
+            if (!slot.IsEmpty()) continue;
 
-            float dist = Vector3.SqrMagnitude(slot.transform.position - pos);
-            if (dist < bestDist)
+            float sqr = (slot.transform.position - pos).sqrMagnitude;
+            if (sqr <= bestSqr)
             {
-                bestDist = dist;
+                bestSqr = sqr;
                 best = slot;
             }
         }
         return best;
     }
 
-    public void SetStartPosition(Vector3 pos) => startPosition = pos;
+    public void SetStartPosition(Vector3 pos)
+    {
+        startPosition = pos;
+        startPlaneY = pos.y;
+    }
 }
